@@ -2,8 +2,11 @@
 
 All notable changes to chunkaudit are listed here. Versions follow [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 0.2.0 - 2026-11-14
 
+- The default output is now an aligned table that is easy to read in a terminal (`--format table`). Use `--format markdown` for the previous default.
+- `render_table` is part of the library API.
+- Demo recordings in the README, generated from real output by `scripts/make_demo_gif.py`.
 - README: measured results on SQuAD v1.1 (48 documents, 10,570 questions) and an overlap sweep.
 
 ## 0.1.0 - 2026-11-14

@@ -53,7 +53,12 @@ def _add_audit_options(parser: argparse.ArgumentParser, strategies: Sequence[str
     parser.add_argument(
         "--mrr-depth", type=int, default=10, help="ranks considered for MRR (default: 10)"
     )
-    parser.add_argument("--format", choices=sorted(RENDERERS), default="markdown")
+    parser.add_argument(
+        "--format",
+        choices=sorted(RENDERERS),
+        default="table",
+        help="table (default) is aligned for the terminal; the others are for pasting and scripts",
+    )
     parser.add_argument(
         "--sort",
         choices=[*sorted(SORT_KEYS), "given"],

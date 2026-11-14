@@ -13,23 +13,19 @@ pip install git+https://github.com/Vishal-Krishna-Kumar/chunkaudit.git
 chunkaudit demo
 ```
 
-```
-| Strategy | Chunks | Avg words | Answer split | Recall@1 | Recall@3 | Recall@5 | MRR@10 | Words in top 5 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `paragraph:80` | 20 | 60 | 0.0% | 90.0% | 100.0% | 100.0% | 0.950 | 297 |
-| `sentence:3:1` | 31 | 56 | 0.0% | 85.0% | 100.0% | 100.0% | 0.925 | 282 |
-| `recursive:60` | 27 | 45 | 0.0% | 85.0% | 95.0% | 95.0% | 0.905 | 223 |
-| `sentence:2` | 34 | 35 | 0.0% | 80.0% | 100.0% | 100.0% | 0.892 | 181 |
-| `fixed:80` | 17 | 71 | 15.0% | 70.0% | 80.0% | 85.0% | 0.760 | 362 |
-| `fixed:40:10` | 41 | 38 | 45.0% | 40.0% | 45.0% | 45.0% | 0.433 | 196 |
-| `fixed:40` | 32 | 38 | 60.0% | 30.0% | 35.0% | 40.0% | 0.335 | 187 |
-```
+![chunkaudit demo: a table of seven chunking strategies with their answer split rate, recall and context size](docs/demo.gif)
 
 That is the bundled sample: 5 short articles and 20 questions. Fixed 40-word chunks cut the answer in 12 of 20 questions, and no retriever can recover an answer that no chunk contains.
+
+The recording is generated from the real output of the command by `scripts/make_demo_gif.py`. The colours on the "Answer split" column are added by that script; the terminal output itself is plain text.
 
 ## Results on SQuAD v1.1
 
 The same audit on a real dataset: the SQuAD v1.1 development set, with the paragraphs of each Wikipedia article joined into one long document. That gives 48 documents of about 5,300 words each and 10,570 questions. The evidence of a question is the sentence that contains the answer. All nine default strategies ran in 13 seconds on a laptop.
+
+![chunkaudit on SQuAD v1.1: nine strategies ranked, fixed 100-word chunks split 29.0% of answers](docs/squad.gif)
+
+The same numbers as a table:
 
 | Strategy | Chunks | Avg words | Answer split | Recall@1 | Recall@3 | Recall@5 | MRR@10 | Words in top 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -120,8 +116,11 @@ If the same text occurs more than once in a document, add `"evidence_start": <ch
 ```
 chunkaudit run path/to/dataset
 chunkaudit run path/to/dataset -s fixed:300,fixed:300:60,recursive:300 -k 1,5,10 --sort split
+chunkaudit run path/to/dataset --format markdown     # a table you can paste into a README or PR
 chunkaudit run path/to/dataset --format json > audit.json
 ```
+
+The default output is an aligned table for the terminal. `--format markdown`, `json` and `csv` are for pasting and scripts.
 
 Twenty to fifty questions with marked evidence are enough to see which strategies split answers on your documents.
 

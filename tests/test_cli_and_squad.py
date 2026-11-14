@@ -9,13 +9,24 @@ from chunkaudit.cli import main
 from chunkaudit.squad import convert_squad
 
 
-def test_demo_prints_a_markdown_table(capsys):
+def test_demo_prints_an_aligned_table_by_default(capsys):
     assert main(["demo"]) == 0
     captured = capsys.readouterr()
-    lines = captured.out.strip().splitlines()
-    assert lines[0].startswith("| Strategy | Chunks | Avg words | Answer split | Recall@1")
+    lines = captured.out.splitlines()
+    assert lines[0].startswith("Strategy") and "Answer split" in lines[0]
+    assert set(lines[1]) == {"-", " "}
     assert len(lines) == 2 + 7
+    assert len({len(line) for line in lines}) == 1  # every row has the same width
+    assert lines[0].index("Answer split") + len("Answer split") == lines[2].index("%") + 1
     assert "5 documents | 20 questions" in captured.err
+
+
+def test_markdown_format_prints_a_markdown_table(capsys):
+    assert main(["demo", "--format", "markdown"]) == 0
+    lines = capsys.readouterr().out.strip().splitlines()
+    assert lines[0].startswith("| Strategy | Chunks | Avg words | Answer split | Recall@1")
+    assert lines[2].startswith("| `")
+    assert len(lines) == 2 + 7
 
 
 def test_run_with_options_and_json_output(capsys):
