@@ -1,6 +1,6 @@
 """chunkaudit: audit RAG chunking strategies without an API key."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .bm25 import BM25Index
 from .chunkers import (
@@ -14,7 +14,7 @@ from .chunkers import (
 )
 from .dataset import Dataset, DatasetError, Document, Question, load_dataset, sample_path
 from .evaluate import StrategyResult, compare, evaluate
-from .report import render_csv, render_json, render_markdown, sort_results
+from .report import render_csv, render_json, render_markdown, render_table, sort_results
 
 __all__ = [
     "DEFAULT_STRATEGIES",
@@ -37,6 +37,7 @@ __all__ = [
     "render_csv",
     "render_json",
     "render_markdown",
+    "render_table",
     "sample_path",
     "sort_results",
 ]
