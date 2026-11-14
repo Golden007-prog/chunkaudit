@@ -1,0 +1,17 @@
+name: Feature request
+description: A new chunking strategy, metric, dataset converter or option
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to measure or do
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like chunkaudit to do
+      description: For a new strategy, describe where it cuts and what its spec would look like.
+    validations:
+      required: true

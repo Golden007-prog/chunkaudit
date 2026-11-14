@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Format check
+        run: ruff format --check .
+      - name: Type check
+        run: mypy chunkaudit
+      - name: Tests
+        run: pytest -q
+      - name: Sample dataset is up to date
+        run: |
+          python scripts/build_sample.py
+          git diff --exit-code chunkaudit/data/sample
+      - name: Demo audit
+        run: chunkaudit demo
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+      - name: Install the wheel and run the demo outside the source tree
+        run: |
+          pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          chunkaudit --version
+          chunkaudit demo --format csv

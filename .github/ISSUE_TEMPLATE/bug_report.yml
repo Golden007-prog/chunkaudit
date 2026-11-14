@@ -1,0 +1,26 @@
+name: Bug report
+description: Something gives a wrong number, a wrong chunk or an error
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Smallest input that reproduces it
+      description: The command or code, plus the document and question (or strategy spec) involved.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `chunkaudit --version` and your Python version.
+    validations:
+      required: true
