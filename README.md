@@ -56,7 +56,7 @@ What the numbers say:
   | 100 | 0.1% | 89.9% | 2,513 |
 
 - **Respecting paragraphs is cheaper than making chunks bigger.** `paragraph:200` is within one point of `sentence:10:2` on Recall@5 (91.6% against 92.5%) with 38% fewer words in the top 5 (777 against 1,258).
-- **What counts as "found" changes the picture.** If only the two or three answer words must be inside a chunk, instead of the sentence around them, `fixed:200` splits just 1.1% of answers and reaches 89.2% Recall@5. chunkaudit uses the sentence by default because a model needs it to answer. Use `--evidence answer` to audit the looser definition.
+- **What counts as "found" changes the picture.** If only the two or three answer words must be inside a chunk, instead of the sentence around them, `fixed:200` splits just 1.1% of answers and reaches 89.2% Recall@5. chunkaudit uses the sentence by default because a model needs it to answer. To audit the looser definition, convert with `chunkaudit squad --evidence answer`.
 
 Two caveats. The sentence-aware strategies score 0% split partly by construction, because the same sentence splitter marks the evidence and builds their chunks. And the retriever is BM25: an embedding retriever may rank the strategies differently.
 
