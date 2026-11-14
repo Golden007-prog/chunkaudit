@@ -27,6 +27,49 @@ chunkaudit demo
 
 That is the bundled sample: 5 short articles and 20 questions. Fixed 40-word chunks cut the answer in 12 of 20 questions, and no retriever can recover an answer that no chunk contains.
 
+## Results on SQuAD v1.1
+
+The same audit on a real dataset: the SQuAD v1.1 development set, with the paragraphs of each Wikipedia article joined into one long document. That gives 48 documents of about 5,300 words each and 10,570 questions. The evidence of a question is the sentence that contains the answer. All nine default strategies ran in 13 seconds on a laptop.
+
+| Strategy | Chunks | Avg words | Answer split | Recall@1 | Recall@3 | Recall@5 | MRR@10 | Words in top 5 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `sentence:10:2` | 1,283 | 245 | 0.0% | 75.4% | 89.1% | 92.5% | 0.828 | 1,258 |
+| `paragraph:200` | 1,687 | 150 | 0.0% | 75.3% | 88.3% | 91.6% | 0.824 | 777 |
+| `recursive:200` | 1,734 | 146 | 0.0% | 74.6% | 88.0% | 91.3% | 0.819 | 753 |
+| `sentence:5:1` | 2,554 | 124 | 0.0% | 72.6% | 86.2% | 89.8% | 0.801 | 633 |
+| `fixed:200:50` | 1,701 | 198 | 1.1% | 69.0% | 86.1% | 90.2% | 0.783 | 995 |
+| `fixed:400` | 658 | 386 | 6.8% | 70.4% | 84.1% | 87.5% | 0.778 | 1,974 |
+| `sentence:3` | 3,419 | 74 | 0.1% | 68.0% | 82.1% | 86.0% | 0.758 | 378 |
+| `fixed:200` | 1,292 | 196 | 14.1% | 63.1% | 75.6% | 78.7% | 0.699 | 994 |
+| `fixed:100` | 2,561 | 99 | 29.0% | 50.5% | 60.0% | 62.6% | 0.558 | 499 |
+
+What the numbers say:
+
+- **Fixed-size chunks without overlap cut a lot of answers.** At 100 words the answering sentence is split in 29.0% of questions, at 200 words in 14.1%. Recall@5 for `fixed:200` is 78.7%, against 91.3% for `recursive:200`, which also sends fewer words to the model (753 against 994).
+- **A small overlap fixes most of it, and more overlap adds nothing.** For 200-word chunks:
+
+  | Overlap | Answer split | Recall@5 | Chunks to index |
+  |---:|---:|---:|---:|
+  | 0 | 14.1% | 78.7% | 1,292 |
+  | 25 | 4.6% | 87.0% | 1,463 |
+  | 50 | 1.1% | 90.2% | 1,701 |
+  | 100 | 0.1% | 89.9% | 2,513 |
+
+- **Respecting paragraphs is cheaper than making chunks bigger.** `paragraph:200` is within one point of `sentence:10:2` on Recall@5 (91.6% against 92.5%) with 38% fewer words in the top 5 (777 against 1,258).
+- **What counts as "found" changes the picture.** If only the two or three answer words must be inside a chunk, instead of the sentence around them, `fixed:200` splits just 1.1% of answers and reaches 89.2% Recall@5. chunkaudit uses the sentence by default because a model needs it to answer. Use `--evidence answer` to audit the looser definition.
+
+Two caveats. The sentence-aware strategies score 0% split partly by construction, because the same sentence splitter marks the evidence and builds their chunks. And the retriever is BM25: an embedding retriever may rank the strategies differently.
+
+Reproduce:
+
+```
+chunkaudit squad --out data/squad
+chunkaudit run data/squad
+chunkaudit run data/squad -s fixed:200,fixed:200:25,fixed:200:50,fixed:200:100 --sort given
+```
+
+SQuAD is by Rajpurkar et al. and is distributed under CC BY-SA 4.0. It is downloaded by the command above and is not included in this repository.
+
 ## What the columns mean
 
 | Column | Meaning |
