@@ -111,6 +111,55 @@ def evaluate(
     )
 
 
+@dataclass(frozen=True)
+class SplitExample:
+    """One question whose evidence a chunking strategy failed to keep in a single chunk."""
+
+    question_id: str
+    question: str
+    doc_id: str
+    evidence: str
+    """The evidence text, with ``marker`` inserted wherever a chunk ends inside it."""
+    pieces: int
+    """Number of chunks the evidence is spread across."""
+
+
+def split_examples(
+    dataset: Dataset,
+    chunker: Chunker,
+    limit: int | None = None,
+    marker: str = " || ",
+) -> list[SplitExample]:
+    """Questions whose evidence is not fully inside any chunk, in dataset order.
+
+    Use this to see what a strategy cuts, not only how often: each example shows the evidence
+    with ``marker`` at the positions where a chunk ends.
+    """
+    spans = {document.id: chunker.split(document.text) for document in dataset.documents}
+    texts = {document.id: document.text for document in dataset.documents}
+    examples: list[SplitExample] = []
+    for question in dataset.questions:
+        if limit is not None and len(examples) >= limit:
+            break
+        chunks = spans[question.doc_id]
+        if any(start <= question.start and end >= question.end for start, end in chunks):
+            continue
+        text = texts[question.doc_id]
+        cuts = sorted({end for _, end in chunks if question.start < end < question.end})
+        edges = [question.start, *cuts, question.end]
+        parts = [text[left:right].strip() for left, right in zip(edges, edges[1:], strict=False)]
+        examples.append(
+            SplitExample(
+                question_id=question.id,
+                question=question.text,
+                doc_id=question.doc_id,
+                evidence=marker.join(part for part in parts if part),
+                pieces=sum(1 for s, e in chunks if s < question.end and e > question.start),
+            )
+        )
+    return examples
+
+
 def compare(
     dataset: Dataset,
     chunkers: Iterable[Chunker],

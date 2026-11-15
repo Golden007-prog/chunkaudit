@@ -11,6 +11,7 @@ from chunkaudit import (
     load_dataset,
     parse_strategy,
     sample_path,
+    split_examples,
 )
 
 TEXT = (
@@ -112,3 +113,31 @@ def test_sample_dataset_shows_the_expected_pattern():
     for result in (fixed, sentence):
         assert 0.0 <= result.mrr <= 1.0
         assert result.recall[1] <= result.recall[3] <= result.recall[5] <= 1 - result.split_rate
+
+
+def test_split_examples_mark_where_the_chunk_ends():
+    # Chunks of 7 words cut the second and third sentences (see the test above).
+    examples = split_examples(make_dataset(), FixedChunker(7))
+    assert [example.question_id for example in examples] == ["q2", "q3"]
+    assert examples[0].evidence == "Bread needs || yeast to rise well."
+    assert examples[1].evidence == "Bees dance to || share flowers."
+    assert all(example.pieces == 2 and example.doc_id == "doc" for example in examples)
+    assert examples[0].question == "what does bread need"
+
+
+def test_split_examples_respect_limit_marker_and_clean_strategies():
+    dataset = make_dataset()
+    assert split_examples(dataset, SentenceChunker(1)) == []
+    assert len(split_examples(dataset, FixedChunker(4), limit=1)) == 1
+    marked = split_examples(dataset, FixedChunker(7), marker=" <CUT> ")[0].evidence
+    assert marked == "Bread needs <CUT> yeast to rise well."
+
+
+def test_split_examples_with_overlap():
+    # 7-word chunks stepping 4 words cover words 1-7, 5-11, 9-15, 13-19 and 17-21.
+    # The second sentence (words 6-11) now fits in one chunk. The third (words 12-16) does
+    # not: the chunk covering words 9-15 ends one word before the sentence does.
+    examples = split_examples(make_dataset(), FixedChunker(7, overlap=3))
+    assert [example.question_id for example in examples] == ["q3"]
+    assert examples[0].evidence == "Bees dance to share || flowers."
+    assert examples[0].pieces == 2

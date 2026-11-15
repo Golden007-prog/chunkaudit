@@ -122,6 +122,26 @@ chunkaudit run path/to/dataset --format json > audit.json
 
 The default output is an aligned table for the terminal. `--format markdown`, `json` and `csv` are for pasting and scripts.
 
+## See what got cut
+
+A split rate tells you how often a strategy cuts answers. `--show-splits N` shows you which ones, with `||` at the exact position where a chunk ends:
+
+```
+chunkaudit demo -s fixed:40,sentence:2 --show-splits 2
+```
+
+```
+fixed:40: 12 of 20 answers split. Showing 2 (|| marks where a chunk ends):
+  [q02] Why does a full cycle of tides take longer than 24 hours?
+      The extra time beyond a full day exists because the Moon moves along its orbit while the Earth turns, so a point on the surface needs about 50 more minutes || to catch up with it.
+  [q05] What gives sourdough bread its sour taste?
+      The yeasts produce carbon dioxide, which makes the || dough rise, while the bacteria produce lactic and acetic acid, which give the bread its sour taste.
+
+sentence:2: no answer was split.
+```
+
+In the first example the chunk ends five words before the sentence does. A retriever can return either half, and neither answers the question on its own. The same list is available in code as `split_examples(dataset, chunker)`.
+
 Twenty to fifty questions with marked evidence are enough to see which strategies split answers on your documents.
 
 ## Strategies
