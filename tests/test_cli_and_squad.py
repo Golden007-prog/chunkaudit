@@ -145,3 +145,18 @@ def test_squad_conversion_joins_paragraphs_and_shifts_offsets(tmp_path):
 
     with pytest.raises(ValueError):
         convert_squad(source, tmp_path / "bad", evidence="paragraph")
+
+
+def test_show_splits_prints_examples_after_the_table(capsys):
+    assert main(["demo", "-s", "fixed:40,sentence:2", "--show-splits", "2"]) == 0
+    out = capsys.readouterr().out
+    assert "fixed:40: 12 of 20 answers split. Showing 2 (|| marks where a chunk ends):" in out
+    assert out.count(" || ") >= 2
+    assert "sentence:2: no answer was split." in out
+    assert out.index("Strategy") < out.index("fixed:40: 12 of 20")
+
+
+def test_show_splits_is_rejected_for_machine_formats(capsys):
+    assert main(["demo", "--show-splits", "1", "--format", "json"]) == 2
+    assert "--show-splits needs" in capsys.readouterr().err
+    assert main(["demo", "--show-splits", "-1"]) == 2

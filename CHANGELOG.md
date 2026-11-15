@@ -2,6 +2,11 @@
 
 All notable changes to chunkaudit are listed here. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.3.0 - 2026-11-15
+
+- `--show-splits N` lists the answers each strategy split, with `||` where a chunk ends inside the evidence.
+- `split_examples()` and `SplitExample` are part of the library API.
+
 ## 0.2.0 - 2026-11-14
 
 - The default output is now an aligned table that is easy to read in a terminal (`--format table`). Use `--format markdown` for the previous default.

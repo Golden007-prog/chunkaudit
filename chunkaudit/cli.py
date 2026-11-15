@@ -13,9 +13,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from . import __version__
-from .chunkers import DEFAULT_STRATEGIES, parse_strategy
-from .dataset import DatasetError, load_dataset, sample_path
-from .evaluate import compare
+from .chunkers import DEFAULT_STRATEGIES, Chunker, parse_strategy
+from .dataset import Dataset, DatasetError, load_dataset, sample_path
+from .evaluate import compare, split_examples
 from .report import RENDERERS, SORT_KEYS, sort_results
 from .squad import convert_squad, download_squad
 
@@ -65,6 +65,13 @@ def _add_audit_options(parser: argparse.ArgumentParser, strategies: Sequence[str
         default="mrr",
         help="order of the rows, best first (default: mrr)",
     )
+    parser.add_argument(
+        "--show-splits",
+        type=int,
+        default=0,
+        metavar="N",
+        help="after the table, show up to N answers each strategy split, with the cut marked",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -98,6 +105,10 @@ def _audit(args: argparse.Namespace, dataset_path: Path) -> int:
             raise ValueError("no strategies given")
         if args.mrr_depth < 1:
             raise ValueError("--mrr-depth must be at least 1")
+        if args.show_splits < 0:
+            raise ValueError("--show-splits must be 0 or more")
+        if args.show_splits and args.format not in ("table", "markdown"):
+            raise ValueError("--show-splits needs --format table or markdown")
         dataset = load_dataset(dataset_path)
     except (DatasetError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
@@ -110,7 +121,27 @@ def _audit(args: argparse.Namespace, dataset_path: Path) -> int:
     )
     results = compare(dataset, chunkers, args.k, args.mrr_depth)
     print(RENDERERS[args.format](sort_results(results, args.sort), args.mrr_depth))
+    if args.show_splits:
+        for chunker in chunkers:
+            print()
+            print(_render_splits(dataset, chunker, args.show_splits))
     return 0
+
+
+def _render_splits(dataset: Dataset, chunker: Chunker, limit: int) -> str:
+    """Examples of the answers a strategy cut, with ``||`` where a chunk ends."""
+    examples = split_examples(dataset, chunker)
+    if not examples:
+        return f"{chunker.name}: no answer was split."
+    shown = examples[:limit]
+    lines = [
+        f"{chunker.name}: {len(examples)} of {len(dataset.questions)} answers split. "
+        f"Showing {len(shown)} (|| marks where a chunk ends):"
+    ]
+    for example in shown:
+        lines.append(f"  [{example.question_id}] {example.question}")
+        lines.append(f"      {example.evidence}")
+    return "\n".join(lines)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
