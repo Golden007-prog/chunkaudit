@@ -16,7 +16,7 @@ from . import __version__
 from .chunkers import DEFAULT_STRATEGIES, Chunker, parse_strategy
 from .dataset import Dataset, DatasetError, load_dataset, sample_path
 from .evaluate import compare, split_examples
-from .report import RENDERERS, SORT_KEYS, sort_results
+from .report import RENDERERS, SORT_KEYS, render_json, sort_results
 from .squad import convert_squad, download_squad
 
 DEMO_STRATEGIES = (
@@ -70,7 +70,7 @@ def _add_audit_options(parser: argparse.ArgumentParser, strategies: Sequence[str
         type=int,
         default=0,
         metavar="N",
-        help="after the table, show up to N answers each strategy split, with the cut marked",
+        help="show up to N marked split answers per strategy (table, markdown or json)",
     )
 
 
@@ -107,8 +107,8 @@ def _audit(args: argparse.Namespace, dataset_path: Path) -> int:
             raise ValueError("--mrr-depth must be at least 1")
         if args.show_splits < 0:
             raise ValueError("--show-splits must be 0 or more")
-        if args.show_splits and args.format not in ("table", "markdown"):
-            raise ValueError("--show-splits needs --format table or markdown")
+        if args.show_splits and args.format not in ("table", "markdown", "json"):
+            raise ValueError("--show-splits needs --format table, markdown or json")
         dataset = load_dataset(dataset_path)
     except (DatasetError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
@@ -120,8 +120,15 @@ def _audit(args: argparse.Namespace, dataset_path: Path) -> int:
         file=sys.stderr,
     )
     results = compare(dataset, chunkers, args.k, args.mrr_depth)
-    print(RENDERERS[args.format](sort_results(results, args.sort), args.mrr_depth))
-    if args.show_splits:
+    if args.show_splits and args.format == "json":
+        examples = {
+            chunker.name: split_examples(dataset, chunker, limit=args.show_splits)
+            for chunker in chunkers
+        }
+        print(render_json(sort_results(results, args.sort), args.mrr_depth, examples=examples))
+    else:
+        print(RENDERERS[args.format](sort_results(results, args.sort), args.mrr_depth))
+    if args.show_splits and args.format != "json":
         for chunker in chunkers:
             print()
             print(_render_splits(dataset, chunker, args.show_splits))
