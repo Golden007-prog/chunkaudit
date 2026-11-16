@@ -2,6 +2,17 @@
 
 All notable changes to chunkaudit are listed here. Versions follow [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+- `--show-splits N` now works with `--format json`: each strategy record gets a `split_examples` list. Contributed by jwalith4418-Mj (#9).
+
+## 0.4.0 - 2026-11-15
+
+- `--retriever embeddings` audits with a sentence-transformers model (`--embedding-model NAME`). Install with `pip install "chunkaudit[embeddings]"`; the core package still depends on NumPy only.
+- `EmbeddingRetriever` and `EmbeddingIndex` are part of the library API and accept any `encode` function.
+- `Benchmark` workflow: runs the SQuAD audit with both retrievers on GitHub Actions.
+- README: BM25 and embedding results side by side.
+
 ## 0.3.0 - 2026-11-15
 
 - `--show-splits N` lists the answers each strategy split, with `||` where a chunk ends inside the evidence.
