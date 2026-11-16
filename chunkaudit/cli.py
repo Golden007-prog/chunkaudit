@@ -13,9 +13,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from . import __version__
+from .bm25 import BM25Index
 from .chunkers import DEFAULT_STRATEGIES, Chunker, parse_strategy
 from .dataset import Dataset, DatasetError, load_dataset, sample_path
-from .evaluate import compare, split_examples
+from .embeddings import DEFAULT_MODEL, EmbeddingRetriever
+from .evaluate import RetrieverFactory, compare, split_examples
 from .report import RENDERERS, SORT_KEYS, sort_results
 from .squad import convert_squad, download_squad
 
@@ -72,6 +74,18 @@ def _add_audit_options(parser: argparse.ArgumentParser, strategies: Sequence[str
         metavar="N",
         help="after the table, show up to N answers each strategy split, with the cut marked",
     )
+    parser.add_argument(
+        "--retriever",
+        choices=("bm25", "embeddings"),
+        default="bm25",
+        help='bm25 (default) needs nothing extra; embeddings needs "chunkaudit[embeddings]"',
+    )
+    parser.add_argument(
+        "--embedding-model",
+        default=DEFAULT_MODEL,
+        metavar="NAME",
+        help="sentence-transformers model for --retriever embeddings (default: %(default)s)",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -114,12 +128,24 @@ def _audit(args: argparse.Namespace, dataset_path: Path) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
+    retriever: RetrieverFactory = BM25Index
+    label = "BM25"
+    if args.retriever == "embeddings":
+        try:
+            embedder = EmbeddingRetriever(args.embedding_model)
+        except RuntimeError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        embedder.warm([question.text for question in dataset.questions])
+        retriever = embedder
+        label = f"embeddings ({args.embedding_model})"
+
     print(
         f"dataset: {dataset.name} | {len(dataset.documents)} documents | "
-        f"{len(dataset.questions)} questions | retriever: BM25",
+        f"{len(dataset.questions)} questions | retriever: {label}",
         file=sys.stderr,
     )
-    results = compare(dataset, chunkers, args.k, args.mrr_depth)
+    results = compare(dataset, chunkers, args.k, args.mrr_depth, retriever)
     print(RENDERERS[args.format](sort_results(results, args.sort), args.mrr_depth))
     if args.show_splits:
         for chunker in chunkers:

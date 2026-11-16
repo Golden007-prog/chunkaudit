@@ -1,0 +1,66 @@
+name: Benchmark
+
+# Runs the SQuAD v1.1 audit with both retrievers and publishes the tables in the run summary.
+# Start it by hand from the Actions tab. It also runs on pull requests that touch the
+# embedding retriever, so the real model path is exercised before a merge.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: sentence-transformers model for the embedding retriever
+        default: sentence-transformers/all-MiniLM-L6-v2
+  pull_request:
+    paths:
+      - chunkaudit/embeddings.py
+      - .github/workflows/benchmark.yml
+
+jobs:
+  squad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MODEL: ${{ inputs.model || 'sentence-transformers/all-MiniLM-L6-v2' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install with the embeddings extra (CPU build of PyTorch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[embeddings]"
+      - name: Demo with the real model
+        run: chunkaudit demo --retriever embeddings --embedding-model "$MODEL"
+      - name: Download and convert SQuAD v1.1
+        run: chunkaudit squad --out data/squad
+      - name: Audit with BM25
+        run: |
+          start=$(date +%s)
+          chunkaudit run data/squad --format markdown | tee bm25.md
+          echo "bm25_seconds=$(( $(date +%s) - start ))" | tee -a timings.txt
+      - name: Audit with embeddings
+        run: |
+          start=$(date +%s)
+          chunkaudit run data/squad --format markdown --retriever embeddings --embedding-model "$MODEL" | tee embeddings.md
+          echo "embeddings_seconds=$(( $(date +%s) - start ))" | tee -a timings.txt
+      - name: Publish the tables
+        run: |
+          {
+            echo "## SQuAD v1.1, retriever: BM25"
+            cat bm25.md
+            echo
+            echo "## SQuAD v1.1, retriever: embeddings ($MODEL)"
+            cat embeddings.md
+            echo
+            echo '```'
+            cat timings.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: squad-audit
+          path: |
+            bm25.md
+            embeddings.md
+            timings.txt
