@@ -5,10 +5,10 @@ from __future__ import annotations
 import csv
 import io
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 
-from .evaluate import StrategyResult
+from .evaluate import SplitExample, StrategyResult
 
 SORT_KEYS: dict[str, Callable[[StrategyResult], float]] = {
     "mrr": lambda result: -result.mrr,
@@ -76,8 +76,16 @@ def render_markdown(results: Sequence[StrategyResult], mrr_depth: int = 10) -> s
     return "\n".join(lines)
 
 
-def render_json(results: Sequence[StrategyResult], mrr_depth: int = 10) -> str:
+def render_json(
+    results: Sequence[StrategyResult],
+    mrr_depth: int = 10,
+    *,
+    examples: Mapping[str, Sequence[SplitExample]] | None = None,
+) -> str:
     records = [{**asdict(result), "mrr_depth": mrr_depth} for result in results]
+    if examples is not None:
+        for record in records:
+            record["split_examples"] = [asdict(example) for example in examples[record["strategy"]]]
     return json.dumps(records, indent=2)
 
 

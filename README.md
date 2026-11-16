@@ -174,6 +174,12 @@ sentence:2: no answer was split.
 
 In the first example the chunk ends five words before the sentence does. A retriever can return either half, and neither answers the question on its own. The same list is available in code as `split_examples(dataset, chunker)`.
 
+Use `--format json --show-splits N` to include a `split_examples` list on each strategy record.
+Each example has `question_id`, `question`, `doc_id`, marked `evidence`, and `pieces`.
+Strategies without split answers include an empty list; without `--show-splits`, JSON stays unchanged.
+`--show-splits` is not available with CSV.
+
+
 Twenty to fifty questions with marked evidence are enough to see which strategies split answers on your documents.
 
 ## Strategies

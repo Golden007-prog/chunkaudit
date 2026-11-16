@@ -156,7 +156,61 @@ def test_show_splits_prints_examples_after_the_table(capsys):
     assert out.index("Strategy") < out.index("fixed:40: 12 of 20")
 
 
-def test_show_splits_is_rejected_for_machine_formats(capsys):
-    assert main(["demo", "--show-splits", "1", "--format", "json"]) == 2
+def test_show_splits_is_rejected_for_csv_and_negative_limits(capsys):
+    assert main(["demo", "--show-splits", "1", "--format", "csv"]) == 2
     assert "--show-splits needs" in capsys.readouterr().err
     assert main(["demo", "--show-splits", "-1"]) == 2
+
+
+@pytest.mark.parametrize("limit", [1, 2, 10])
+def test_json_split_examples_are_structured_limited_and_follow_strategy_sort(
+    tmp_path, capsys, limit
+):
+    text = "Alpha beta gamma delta epsilon zeta."
+    (tmp_path / "corpus.jsonl").write_text(
+        json.dumps({"id": "doc", "text": text}) + "\n", encoding="utf-8"
+    )
+    questions = [
+        {"id": "q1", "question": "Which words?", "doc_id": "doc", "evidence": text},
+        {
+            "id": "q2",
+            "question": "Middle words?",
+            "doc_id": "doc",
+            "evidence": "gamma delta epsilon",
+        },
+    ]
+    (tmp_path / "questions.jsonl").write_text(
+        "\n".join(json.dumps(q) for q in questions) + "\n", encoding="utf-8"
+    )
+    args = ["run", str(tmp_path), "-s", "fixed:2,sentence:1", "--format", "json", "--sort", "split"]
+    assert main(args) == 0
+    original = json.loads(capsys.readouterr().out)
+    assert all("split_examples" not in record for record in original)
+
+    assert main([*args, "--show-splits", str(limit)]) == 0
+    records = json.loads(capsys.readouterr().out)
+    assert [r["strategy"] for r in records] == ["sentence:1", "fixed:2"]
+    assert records[0]["split_examples"] == []
+    expected = [
+        {
+            "question_id": "q1",
+            "question": "Which words?",
+            "doc_id": "doc",
+            "evidence": "Alpha beta || gamma delta || epsilon zeta.",
+            "pieces": 3,
+        },
+        {
+            "question_id": "q2",
+            "question": "Middle words?",
+            "doc_id": "doc",
+            "evidence": "gamma delta || epsilon",
+            "pieces": 2,
+        },
+    ]
+    assert records[1]["split_examples"] == expected[:limit]
+    assert all(record["seconds"] >= 0 for record in records)
+
+    def stable(r):
+        return {k: v for k, v in r.items() if k not in ("split_examples", "seconds")}
+
+    assert [stable(record) for record in records] == [stable(record) for record in original]
