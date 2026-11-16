@@ -1,6 +1,6 @@
 """chunkaudit: audit RAG chunking strategies without an API key."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from .bm25 import BM25Index
 from .chunkers import (

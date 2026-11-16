@@ -66,6 +66,38 @@ chunkaudit run data/squad -s fixed:200,fixed:200:25,fixed:200:50,fixed:200:100 -
 
 SQuAD is by Rajpurkar et al. and is distributed under CC BY-SA 4.0. It is downloaded by the command above and is not included in this repository.
 
+## Does the retriever change the ranking?
+
+Yes. The same audit with an embedding retriever (`sentence-transformers/all-MiniLM-L6-v2`), run on GitHub Actions by the `Benchmark` workflow in this repository:
+
+```
+pip install "chunkaudit[embeddings]"
+chunkaudit run data/squad --retriever embeddings
+```
+
+| Strategy | Answer split | Recall@5 with BM25 | Rank | Recall@5 with embeddings | Rank |
+|---|---:|---:|---:|---:|---:|
+| `paragraph:200` | 0.0% | 91.6% | 2 | 84.0% | 1 |
+| `recursive:200` | 0.0% | 91.3% | 3 | 83.5% | 2 |
+| `sentence:5:1` | 0.0% | 89.8% | 5 | 81.8% | 3 |
+| `sentence:3` | 0.1% | 86.0% | 7 | 80.1% | 4 |
+| `sentence:10:2` | 0.0% | 92.5% | 1 | 79.7% | 5 |
+| `fixed:200:50` | 1.1% | 90.2% | 4 | 78.9% | 6 |
+| `fixed:200` | 14.1% | 78.7% | 8 | 68.7% | 7 |
+| `fixed:400` | 6.8% | 87.5% | 6 | 62.7% | 8 |
+| `fixed:100` | 29.0% | 62.6% | 9 | 57.4% | 9 |
+
+What changes and what does not:
+
+- **The answer split column is identical**, as it must be: it depends on the chunker only.
+- **The biggest chunks lose the most.** Ten-sentence chunks go from first to fifth, and fixed 400-word chunks from 87.5% to 62.7% Recall@5. A likely reason is that this model reads at most 256 tokens, roughly 190 words, so it never sees the end of a longer chunk. I have not isolated that effect.
+- **Small chunks gain.** Three-sentence chunks move from seventh to fourth.
+- **Paragraph-aware chunks of about 150 words are in the top three with both retrievers**, and fixed chunks without overlap are near the bottom with both. A 50-word overlap helps with both (68.7% to 78.9% with embeddings).
+- **BM25 scores higher than this embedding model on every strategy here.** SQuAD questions were written by people looking at the passage, so they share many words with it. Do not read this as "BM25 is better" in general.
+- **Cost:** on the same GitHub Actions runner the BM25 audit took 7 seconds and the embedding audit 322 seconds.
+
+The practical point: choose the chunk size together with the retriever. A size that works with BM25 can be too long for an embedding model.
+
 ## What the columns mean
 
 | Column | Meaning |
@@ -196,11 +228,22 @@ print(result.chunks, result.split_rate)
 
 ### Use your own retriever
 
-BM25 is the default because it needs nothing installed. To audit with an embedding model, pass `retriever=` a callable that takes the list of chunk texts and returns an object with `search(query, k)`, which returns the positions of the best `k` chunks, best first.
+BM25 is the default because it needs nothing installed. `--retriever embeddings` switches to a sentence-transformers model (`--embedding-model NAME` picks which one), after `pip install "chunkaudit[embeddings]"`.
+
+In code, pass `retriever=` any callable that takes the list of chunk texts and returns an object with `search(query, k)`, which returns the positions of the best `k` chunks, best first. `EmbeddingRetriever` is that for embedding models. Give it your own `encode` function to use a hosted embedding API or another library:
+
+```python
+from chunkaudit import EmbeddingRetriever, compare, load_dataset, parse_strategy, sample_path
+
+dataset = load_dataset(sample_path())
+retriever = EmbeddingRetriever()  # or EmbeddingRetriever(encode=my_function)
+retriever.warm([question.text for question in dataset.questions])  # embed the questions once
+results = compare(dataset, [parse_strategy("sentence:2")], retriever=retriever)
+```
 
 ## Limits
 
-- **Lexical retrieval by default.** BM25 rewards shared words. An embedding retriever can rank strategies differently, which is why the retriever is pluggable.
+- **Lexical retrieval by default.** BM25 rewards shared words. An embedding retriever ranks the strategies differently (see the comparison above), so audit with the retriever you will use.
 - **Whole-evidence matching is strict.** A chunk with 90% of the evidence counts as a miss. That is deliberate: it is what makes "answer split" meaningful.
 - **Words, not tokens.** Sizes are in words to avoid a tokenizer dependency. For English prose, multiply by about 1.3 for a rough token count.
 - **Rule-based sentence splitting.** It handles common abbreviations and initials, not every edge case.
